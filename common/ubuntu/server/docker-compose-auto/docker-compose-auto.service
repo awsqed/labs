@@ -1,0 +1,27 @@
+[Unit]
+Description=Docker Compose Auto-Start Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+# Service Type
+Type=oneshot
+RemainAfterExit=yes
+
+# Environment Variables
+Environment="PROJECTS_DIR=/opt/docker-projects"
+
+# Execution Commands
+ExecStart=/usr/local/bin/docker-compose-auto.sh start
+ExecStop=/usr/local/bin/docker-compose-auto.sh stop
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=docker-compose-auto
+
+# Process Management
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

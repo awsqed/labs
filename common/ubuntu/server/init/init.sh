@@ -97,7 +97,6 @@ init_logging() {
         PROGRESS_FILE="/tmp/server-init-progress.log"
         touch "$PROGRESS_FILE"
     fi
-    # FIX #5: More restrictive permissions on progress file
     chmod 640 "$PROGRESS_FILE"
 }
 
@@ -136,7 +135,7 @@ log_error() {
 # UTILITY FUNCTIONS
 # ============================================================================
 
-# FIX #1: Check if Docker is installed dynamically
+# Check if Docker is installed dynamically
 check_docker_installed() {
     command -v docker >/dev/null 2>&1 && systemctl is-active --quiet docker 2>/dev/null
 }
@@ -180,7 +179,7 @@ error_handler() {
 # Set error trap
 trap 'error_handler ${LINENO}' ERR
 
-# FIX #3: Add trap for normal exit to clean up lock file
+# Add trap for normal exit to clean up lock file
 trap 'flock -u 200 2>/dev/null || true; rm -f "$LOCK_FILE" 2>/dev/null || true' EXIT
 
 # Validate step number
@@ -192,7 +191,7 @@ validate_step() {
     fi
 }
 
-# FIX #6: Validate configuration inputs
+# Validate configuration inputs
 validate_config() {
     # Validate SSH_PORT
     if ! [[ "$SSH_PORT" =~ ^[0-9]+$ ]] || [ "$SSH_PORT" -lt 1 ] || [ "$SSH_PORT" -gt 65535 ]; then
@@ -247,7 +246,7 @@ check_os() {
     log_info "Detected: $PRETTY_NAME"
 }
 
-# FIX #14: Check network connectivity (IPv4 and IPv6)
+# Check network connectivity (IPv4 and IPv6)
 check_network() {
     log_info "Checking network connectivity..."
     if ! ping -c 1 -W 2 8.8.8.8 &>/dev/null && ! ping6 -c 1 -W 2 2001:4860:4860::8888 &>/dev/null; then
@@ -389,7 +388,7 @@ if ! flock -n 200; then
     exit 1
 fi
 
-# FIX #6: Validate configuration before proceeding
+# Validate configuration before proceeding
 if [[ "$NEW_USER" == "YOUR_USERNAME" ]] || [[ "$SSH_PUBLIC_KEY" == "YOUR_SSH_PUBLIC_KEY_HERE" ]]; then
     log_error "You must customize NEW_USER and SSH_PUBLIC_KEY before running this script!"
     log_error ""
@@ -460,7 +459,7 @@ EOF
 
     apt autoremove --purge -y
 
-    # FIX #2: Set LAST_STEP just before save_progress
+    # Set LAST_STEP just before save_progress
     LAST_STEP=1
     save_progress 1
 fi
@@ -507,7 +506,7 @@ if [ $START_FROM_STEP -le 3 ]; then
     mkdir -p /run/sshd
     chmod 0755 /run/sshd
 
-    # FIX #4: Use mktemp for secure temp file creation
+    # Use mktemp for secure temp file creation
     SSHD_TEMP=$(mktemp /tmp/sshd-custom.XXXXXX)
 
     # Create custom SSH configuration in temp file first
@@ -585,7 +584,6 @@ fi
 if [ $START_FROM_STEP -le 4 ]; then
     log_info "Step 4/$TOTAL_STEPS: Installing and configuring CrowdSec..."
 
-    # FIX #7: Download installer first, then execute
     CROWDSEC_INSTALLER=$(mktemp)
     log_info "Downloading CrowdSec installer..."
     if curl -fsSL https://install.crowdsec.net -o "$CROWDSEC_INSTALLER"; then
@@ -594,6 +592,17 @@ if [ $START_FROM_STEP -le 4 ]; then
     else
         log_error "Failed to download CrowdSec installer"
         rm -f "$CROWDSEC_INSTALLER"
+        exit 1
+    fi
+
+    # Install CrowdSec
+    log_info "Installing CrowdSec package..."
+    apt update
+    apt install -y crowdsec
+
+    # Verify cscli is installed and available
+    if ! command -v cscli &> /dev/null; then
+        log_error "CrowdSec installation failed - cscli command not found."
         exit 1
     fi
 
@@ -726,7 +735,7 @@ EOF
     backup_file /etc/mailname
     echo "$MAIL_HOSTNAME" > /etc/mailname
 
-    # FIX #20: Update /etc/hosts - preserve additional entries
+    # Update /etc/hosts - preserve additional entries
     log_info "Updating /etc/hosts..."
     backup_file /etc/hosts
     if grep -q "^127.0.1.1" /etc/hosts; then
@@ -828,7 +837,7 @@ if [ $START_FROM_STEP -le 7 ]; then
     if [ "$INSTALL_DOCKER" = true ]; then
         log_info "Installing Docker Engine using official convenience script..."
 
-        # FIX #7: Download Docker installer first, then execute
+        # Download Docker installer first, then execute
         DOCKER_INSTALLER=$(mktemp)
         if curl -fsSL https://get.docker.com -o "$DOCKER_INSTALLER"; then
             sh "$DOCKER_INSTALLER"
@@ -1009,7 +1018,7 @@ if [ $START_FROM_STEP -le 8 ]; then
 # -e 2
 EOF
 
-    # FIX #9: Reload audit rules properly
+    # Reload audit rules properly
     if command -v augenrules >/dev/null 2>&1; then
         if augenrules --load >/dev/null 2>&1; then
             log_info "Audit rules reloaded"
@@ -1060,7 +1069,7 @@ if [ $START_FROM_STEP -le 10 ]; then
     sed -i 's|^ALLOWHIDDENDIR=.*|ALLOWHIDDENDIR=/dev/.lxc|' /etc/rkhunter.conf
     sed -i 's|^#ALLOWHIDDENDIR=/dev/.udev|ALLOWHIDDENDIR=/dev/.udev|' /etc/rkhunter.conf
 
-    # FIX #17: Update rkhunter database with selective warning suppression
+    # Update rkhunter database with selective warning suppression
     rkhunter --update 2>&1 | grep -v "Warning: Invalid WEB_CMD" || true
     rkhunter --propupd 2>&1 | grep -v "Warning: Invalid WEB_CMD" || true
 
@@ -1124,7 +1133,7 @@ if [ $START_FROM_STEP -le 13 ]; then
 
     # Only initialize if database doesn't exist
     if [ ! -f /var/lib/aide/aide.db ] && [ ! -f /var/lib/aide/aide.db.gz ]; then
-        # FIX #11: Add AIDE progress indicator
+        # Add AIDE progress indicator
         log_info "Initializing AIDE database (this may take 10-15 minutes)..."
         log_info "Progress indicator: A dot will appear every 10 seconds..."
 
@@ -1149,7 +1158,7 @@ if [ $START_FROM_STEP -le 13 ]; then
         log_info "AIDE database already exists. Skipping initialization."
     fi
 
-    # FIX #13: Set up weekly AIDE checks with PATH
+    # Set up weekly AIDE checks with PATH
     cat > /etc/cron.weekly/aide-check << 'EOF'
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -1314,7 +1323,7 @@ net.ipv6.conf.all.forwarding = 1
 net.ipv6.conf.default.forwarding = 1
 EOF
 
-    # FIX #19: Don't suppress sysctl errors
+    # Don't suppress sysctl errors
     if sysctl -p /etc/sysctl.d/99-security.conf; then
         log_info "Sysctl settings applied successfully"
     else
@@ -1329,7 +1338,7 @@ fi
 # STEP 15: APPARMOR DOCKER SECURITY
 # ============================================================================
 if [ $START_FROM_STEP -le 15 ]; then
-    # FIX #1: Use check_docker_installed function
+    # Use check_docker_installed function
     if check_docker_installed; then
         log_info "Step 15/$TOTAL_STEPS: Configuring AppArmor for Docker..."
 
@@ -1392,7 +1401,7 @@ profile docker-default flags=(attach_disconnected,mediate_deleted) {
 }
 EOF
 
-    # FIX #10: Don't suppress AppArmor error output
+    # Don't suppress AppArmor error output
     APPARMOR_ERR=$(mktemp)
     if apparmor_parser -r /etc/apparmor.d/docker-default 2>"$APPARMOR_ERR"; then
         log_info "AppArmor Docker profile loaded successfully"
@@ -1405,7 +1414,7 @@ EOF
         # Configure Docker to use AppArmor
         mkdir -p /etc/docker
 
-        # FIX #8/15: Handle daemon.json better
+        # Handle daemon.json better
         if [ -f /etc/docker/daemon.json ]; then
             backup_file /etc/docker/daemon.json
             log_warn "Existing Docker daemon.json found and backed up."
@@ -1460,7 +1469,7 @@ fi
 # STEP 16: DOCKER RUNTIME SECURITY
 # ============================================================================
 if [ $START_FROM_STEP -le 16 ]; then
-    # FIX #1: Use check_docker_installed function
+    # Use check_docker_installed function
     if check_docker_installed; then
         log_info "Step 16/$TOTAL_STEPS: Configuring Docker runtime security..."
 
@@ -1539,7 +1548,7 @@ else
 fi
 echo ""
 
-# FIX #16: Check for containers running as root - safe iteration
+# Check for containers running as root - safe iteration
 echo "4. Containers running as root (check manually):"
 if docker ps --quiet 2>/dev/null | grep -q .; then
     docker ps --quiet 2>/dev/null | while read -r container; do
@@ -1566,7 +1575,7 @@ EOF
 
         chmod +x /usr/local/bin/check-docker-security
 
-        # FIX #13: Create weekly cron job with PATH
+        # Create weekly cron job with PATH
         cat > /etc/cron.weekly/docker-security-check << 'EOF'
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -1595,7 +1604,7 @@ if [ $START_FROM_STEP -le 17 ]; then
 
     backup_file /etc/fstab
 
-    # FIX #12: Calculate tmpfs size dynamically (25% of RAM or 2GB minimum)
+    # Calculate tmpfs size dynamically (25% of RAM or 2GB minimum)
     TOTAL_RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
     TMP_SIZE=$(( TOTAL_RAM_KB / 4 / 1024 ))  # 25% in MB
     [ $TMP_SIZE -lt 2048 ] && TMP_SIZE=2048  # Minimum 2GB
@@ -1786,7 +1795,7 @@ if [ $START_FROM_STEP -le 21 ]; then
 
     # Lynis should already be installed from Step 9
 
-    # FIX #13: Create weekly Lynis audit script with PATH
+    # Create weekly Lynis audit script with PATH
     cat > /usr/local/bin/weekly-security-audit << 'EOF'
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -1856,7 +1865,7 @@ fi
 if [ $START_FROM_STEP -le 22 ]; then
     log_info "Step 22/$TOTAL_STEPS: Configuring log monitoring and alerts..."
 
-    # FIX #13: Create daily log monitoring script with PATH
+    # Create daily log monitoring script with PATH
     cat > /usr/local/bin/daily-log-check << 'EOF'
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -2058,7 +2067,7 @@ if [ $START_FROM_STEP -le 23 ]; then
         fi
     fi
 
-    # FIX #10: Be selective about log permissions - only remove world-read from sensitive logs
+    # Be selective about log permissions - only remove world-read from sensitive logs
     for log in auth.log secure syslog kern.log; do
         [ -f "/var/log/$log" ] && chmod 640 "/var/log/$log" 2>/dev/null || true
     done

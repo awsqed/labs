@@ -1,0 +1,38 @@
+[Unit]
+Description=Tailscale subnet routing via bridge network container
+After=docker-compose-auto.service
+Requires=docker-compose-auto.service
+StartLimitBurst=5
+StartLimitIntervalSec=30
+
+[Service]
+# Service Type
+# oneshot: runs once and exits
+# RemainAfterExit: systemd considers service active after script completes
+Type=oneshot
+RemainAfterExit=yes
+
+# Execution Commands
+# Wait for Docker services to stabilize before setup
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/local/bin/tailscale-bridge-routing.sh
+
+# Cleanup on service stop
+# Remove host route to Tailscale container
+ExecStop=/sbin/ip route del 10.0.0.0/8 2>/dev/null || true
+# Remove NAT masquerading rule from container
+ExecStop=/usr/bin/docker exec tailscale iptables -t nat -D POSTROUTING -o tailscale0 -j MASQUERADE 2>/dev/null || true
+
+# Restart Behavior
+# Restart only on failure, not on clean stop
+Restart=on-failure
+RestartSec=5s
+
+# Logging
+# Send all output to systemd journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tailscale-bridge-routing
+
+[Install]
+WantedBy=multi-user.target

@@ -1,7 +1,7 @@
 [Unit]
-Description=Docker Compose Auto-Start Service
-After=docker.service
-Requires=docker.service
+Description=Tailscale subnet routing via host network mode container
+After=docker-compose-auto.service
+Requires=docker-compose-auto.service
 StartLimitBurst=5
 StartLimitIntervalSec=30
 
@@ -12,14 +12,14 @@ StartLimitIntervalSec=30
 Type=oneshot
 RemainAfterExit=yes
 
-# Environment Variables
-Environment="PROJECTS_DIR=/opt/docker-projects"
-
 # Execution Commands
-ExecStart=/usr/local/bin/docker-compose-auto.sh start
+# Wait for Tailscale container to create tailscale0 interface
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/local/bin/tailscale-host-routing.sh
 
 # Cleanup on service stop
-ExecStop=/usr/local/bin/docker-compose-auto.sh stop
+# Remove nftables rule
+ExecStop=/usr/sbin/nft delete rule ip raw PREROUTING iifname "tailscale0" accept 2>/dev/null || true
 
 # Restart Behavior
 # Restart only on failure, not on clean stop
@@ -30,10 +30,7 @@ RestartSec=5s
 # Send all output to systemd journal
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=docker-compose-auto
-
-# Process Management
-TimeoutStartSec=0
+SyslogIdentifier=tailscale-host-routing
 
 [Install]
 WantedBy=multi-user.target

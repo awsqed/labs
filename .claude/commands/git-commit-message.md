@@ -1,61 +1,55 @@
-Your task is to help the user to generate a commit message and commit the changes using git.
+Generate commit message and commit staged changes using git.
 
-## Guidelines
+## Rules
 
-- DO NOT add any ads such as "Generated with [Claude Code](https://claude.ai/code)"
-- Only generate the message for staged files/changes
-- Don't add any files using `git add`. The user will decide what to add.
-- Follow the rules below for the commit message.
-
+- NO ads (e.g., "Generated with Claude Code")
+- Only commit staged files
+- Do NOT use `git add` (user decides what to stage)
 
 ## Format
 
 ```
-<type>:<space><message title>
+<type>(<scope>): <message>
 
-<bullet points summarizing what was updated>
+- Bullet point summary of changes
+- Additional context if needed
 ```
 
-## Example Titles
+## Types
 
-```
-feat(auth): add JWT login flow
-fix(ui): handle null pointer in sidebar
-refactor(api): split user controller logic
-docs(readme): add usage section
-```
+| Type | Use For |
+|------|---------|
+| feat | New feature |
+| fix | Bug fix |
+| chore | Maintenance, tooling, deps |
+| docs | Documentation |
+| refactor | Code restructure (no behavior change) |
+| test | Test additions/refactoring |
+| style | Formatting (no logic change) |
+| perf | Performance improvements |
 
-## Example with Title and Body
+## Requirements
+
+- Title: lowercase, max 50 chars, no period
+- Scope: optional, component/area affected
+- Body: explain WHY, not WHAT (optional)
+- Bullets: concise, high-level
+
+## Examples
 
 ```
 feat(auth): add JWT login flow
 
 - Implemented JWT token validation logic
-- Added documentation for the validation component
+- Added documentation for validation component
 ```
 
-## Rules
+```
+fix(ui): handle null pointer in sidebar
+```
 
-* title is lowercase, no period at the end.
-* Title should be a clear summary, max 50 characters.
-* Use the body (optional) to explain *why*, not just *what*.
-* Bullet points should be concise and high-level.
+```
+refactor(api): split user controller logic
+```
 
-Avoid
-
-* Vague titles like: "update", "fix stuff"
-* Overly long or unfocused titles
-* Excessive detail in bullet points
-
-## Allowed Types
-
-| Type     | Description                           |
-| -------- | ------------------------------------- |
-| feat     | New feature                           |
-| fix      | Bug fix                               |
-| chore    | Maintenance (e.g., tooling, deps)     |
-| docs     | Documentation changes                 |
-| refactor | Code restructure (no behavior change) |
-| test     | Adding or refactoring tests           |
-| style    | Code formatting (no logic change)     |
-| perf     | Performance improvements              |
+Avoid: vague titles ("update", "fix stuff"), excessive detail, long titles

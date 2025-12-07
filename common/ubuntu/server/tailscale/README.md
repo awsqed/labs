@@ -1,21 +1,19 @@
-# Tailscale Host Routing Setup
+# Tailscale Host Routing
 
-Configure host-level routing to access Tailscale subnet routes through a Tailscale Docker container.
+Configure host routing to access Tailscale subnet routes through Docker container.
 
 ## Version Selection
 
-Two versions available based on Tailscale container network mode:
-
-| Version | Network Mode | Use Case |
-|---------|-------------|----------|
-| **Bridge Mode** | Custom Docker network | Tailscale container isolated on its own bridge network |
-| **Host Mode** | `--network=host` | Tailscale container shares host network namespace |
+| Version | Network Mode | Container Network | Use Case |
+|---------|--------------|-------------------|----------|
+| **Bridge** | Custom network | Dedicated bridge | Isolated container on own network |
+| **Host** | `--network=host` | Shared with host | Direct host namespace access |
 
 ## Bridge Network Mode
 
 **Files:**
-- [bridge/tailscale-bridge-routing.sh](bridge/tailscale-bridge-routing.sh)
-- [bridge/tailscale-bridge-routing.service](bridge/tailscale-bridge-routing.service)
+- `bridge/tailscale-bridge-routing.sh`
+- `bridge/tailscale-bridge-routing.service`
 
 **Requirements:**
 - Tailscale container on dedicated Docker network (e.g., "tailscale")
@@ -25,8 +23,8 @@ Two versions available based on Tailscale container network mode:
 **How It Works:**
 1. Waits for Docker daemon and Tailscale container
 2. Retrieves container IP from Docker network
-3. Adds host route: `10.0.0.0/8 via <container-ip>`
-4. Configures NAT masquerading inside container
+3. Adds route: `10.0.0.0/8 via <container-ip>`
+4. Configures NAT masquerading in container
 
 **Installation:**
 ```bash
@@ -34,8 +32,7 @@ sudo cp bridge/tailscale-bridge-routing.sh /usr/local/bin/
 sudo chmod +x /usr/local/bin/tailscale-bridge-routing.sh
 sudo cp bridge/tailscale-bridge-routing.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable tailscale-bridge-routing.service
-sudo systemctl start tailscale-bridge-routing.service
+sudo systemctl enable --now tailscale-bridge-routing.service
 ```
 
 **Verification:**
@@ -48,17 +45,17 @@ docker exec tailscale iptables -t nat -L POSTROUTING -n -v
 ## Host Network Mode
 
 **Files:**
-- [host/tailscale-host-routing.sh](host/tailscale-host-routing.sh)
-- [host/tailscale-host-routing.service](host/tailscale-host-routing.service)
+- `host/tailscale-host-routing.sh`
+- `host/tailscale-host-routing.service`
 
 **Requirements:**
 - Tailscale container using `--network=host`
-- tailscale0 interface created on host by container
+- tailscale0 interface on host
 
 **How It Works:**
-1. Waits for tailscale0 interface to appear on host
-2. Enables IP forwarding via sysctl
-3. Configures nftables raw table rule to bypass ufw-docker blocking
+1. Waits for tailscale0 interface
+2. Enables IP forwarding
+3. Configures nftables to bypass ufw-docker blocking
 
 **Installation:**
 ```bash
@@ -66,8 +63,7 @@ sudo cp host/tailscale-host-routing.sh /usr/local/bin/
 sudo chmod +x /usr/local/bin/tailscale-host-routing.sh
 sudo cp host/tailscale-host-routing.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable tailscale-host-routing.service
-sudo systemctl start tailscale-host-routing.service
+sudo systemctl enable --now tailscale-host-routing.service
 ```
 
 **Verification:**
@@ -80,30 +76,18 @@ sudo nft list ruleset | grep tailscale0
 
 ## Testing Connectivity
 
-From a remote Tailscale client:
-
+**From remote Tailscale client:**
 ```bash
-# Test access to advertised subnet
-ping -c 3 10.1.2.130
-
-# Test with traceroute
-traceroute 10.1.2.130
-
-# Check if subnet router is reachable
-ping -c 3 100.103.82.84
+ping -c 3 10.1.2.130              # Test subnet
+traceroute 10.1.2.130             # Check route
+ping -c 3 100.103.82.84           # Test router
 ```
 
-On the subnet router host:
-
+**On subnet router host:**
 ```bash
-# Watch traffic on Tailscale interface
-sudo tcpdump -i tailscale0 -n icmp
-
-# Check iptables counters
-sudo iptables -L FORWARD -n -v
-
-# Check NAT table
-sudo iptables -t nat -L POSTROUTING -n -v
+sudo tcpdump -i tailscale0 -n icmp         # Watch traffic
+sudo iptables -L FORWARD -n -v             # Check counters
+sudo iptables -t nat -L POSTROUTING -n -v  # Check NAT
 ```
 
 ## Directory Structure
@@ -141,46 +125,39 @@ sudo systemctl daemon-reload
 
 ## Architecture Comparison
 
-### Bridge Network Mode
+### Bridge Mode
 ```
-Host OS
-  ├─ tailscale (Docker network)
-  │   └─ tailscale container (10.x.x.x)
-  │       └─ tailscale0 interface
-  ├─ Host routing table
-  │   └─ 10.0.0.0/8 via <container-ip>
-  └─ Docker containers on other networks
-```
-
-### Host Network Mode
-```
-Host OS
-  ├─ tailscale0 interface (created by container)
-  ├─ iptables FORWARD/NAT rules
-  └─ Docker containers on bridge networks
+Host
+├─ tailscale network (Docker)
+│   └─ tailscale container (10.x.x.x)
+│       └─ tailscale0 interface
+├─ Route: 10.0.0.0/8 via <container-ip>
+└─ Other Docker containers
 ```
 
-## Performance Considerations
+### Host Mode
+```
+Host
+├─ tailscale0 interface (created by container)
+├─ iptables FORWARD/NAT rules
+└─ Docker containers on bridges
+```
 
-**Bridge Mode:**
-- Extra network hop through container network
-- Slightly higher latency
-- Better isolation
+## Performance & Security
 
-**Host Mode:**
-- Direct access to host network stack
-- Lower latency
-- Less isolation
-- Simpler routing
+| Aspect | Bridge Mode | Host Mode |
+|--------|-------------|-----------|
+| **Latency** | Higher (extra hop) | Lower (direct) |
+| **Isolation** | Better | Less |
+| **Complexity** | More complex | Simpler routing |
+| **Host Access** | Limited | Full network stack |
 
-## Security Considerations
+**Security Impact (Both):**
+- Enables IP forwarding
+- NAT masquerading (changes source IP)
+- Requires root privileges
 
-Both versions:
-- Enable IP forwarding (security impact on host)
-- Configure NAT masquerading (changes source IP)
-- Require root privileges
-
-Additional for Host Mode:
-- Tailscale has direct access to host network interfaces
-- Container can modify host iptables rules
-- Less network isolation
+**Additional (Host Mode):**
+- Tailscale accesses host interfaces directly
+- Container modifies host iptables
+- Reduced network isolation

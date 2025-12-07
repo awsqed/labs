@@ -1,8 +1,6 @@
 # Systemd Service File Standard
 
-Version: 1.0 | Last Updated: 2025-11-22
-
-Apply this standard to ALL .service file operations in this repository.
+Apply to ALL .service file operations in this repository.
 
 ## Required Actions
 
@@ -10,7 +8,7 @@ When creating/modifying systemd .service files:
 - Follow template structure exactly
 - Maintain directive ordering specified below
 - Include all mandatory sections
-- Validate syntax with `systemd-analyze verify` before completion
+- Validate: `systemd-analyze verify` before completion
 
 ## Standard Template
 
@@ -97,19 +95,23 @@ WantedBy=multi-user.target
 
 ## Service Types
 
-- **simple**: Main process in ExecStart (default)
-- **forking**: Process forks, parent exits. Use with PIDFile=
-- **oneshot**: Short-lived. Use with RemainAfterExit=yes
-- **notify**: Sends readiness via sd_notify()
-- **dbus**: Acquires D-Bus name
+| Type | Behavior | Use With |
+|------|----------|----------|
+| **simple** | Main process in ExecStart | Default, long-running daemons |
+| **forking** | Process forks, parent exits | PIDFile= |
+| **oneshot** | Short-lived task | RemainAfterExit=yes |
+| **notify** | Sends readiness notification | sd_notify() |
+| **dbus** | Acquires D-Bus name | D-Bus services |
 
 ## Restart Values
 
-- **on-failure**: Restart on non-zero exit, signals, timeouts (RECOMMENDED)
-- **always**: Always restart
-- **no**: Never restart (default)
+| Value | Behavior |
+|-------|----------|
+| **on-failure** | Restart on non-zero exit, signals, timeouts (RECOMMENDED) |
+| **always** | Always restart regardless of exit status |
+| **no** | Never restart (default) |
 
-**CRITICAL**: StartLimitBurst and StartLimitIntervalSec belong in [Unit] section, NOT [Service].
+**CRITICAL**: StartLimitBurst and StartLimitIntervalSec belong in [Unit], NOT [Service].
 
 ## Security Hardening
 
@@ -124,32 +126,18 @@ ProtectKernelTunables=yes
 RestrictRealtime=yes
 ```
 
-ProtectSystem levels:
+**ProtectSystem levels:**
 - **strict**: Entire filesystem read-only except /dev, /proc, /sys
 - **full**: /usr, /boot, /efi read-only
 - **yes**: /usr, /boot read-only
 
 ## Common Patterns
 
-Wait for network:
-```ini
-[Unit]
-After=network-online.target
-Wants=network-online.target
-```
-
-Database dependency:
-```ini
-[Unit]
-Requires=postgresql.service
-After=postgresql.service
-```
-
-Graceful reload:
-```ini
-[Service]
-ExecReload=/bin/kill -HUP $MAINPID
-```
+| Pattern | Implementation |
+|---------|----------------|
+| **Wait for network** | `After=network-online.target`<br>`Wants=network-online.target` |
+| **Database dependency** | `Requires=postgresql.service`<br>`After=postgresql.service` |
+| **Graceful reload** | `ExecReload=/bin/kill -HUP $MAINPID` |
 
 ## Type-Specific Templates
 
@@ -228,16 +216,16 @@ RestartSec=10s
 WantedBy=multi-user.target
 ```
 
-## Mandatory Requirements
+## Requirements
 
-MUST HAVE:
+**MUST HAVE:**
 - [Unit] with Description
 - [Service] with Type and ExecStart
 - [Install] with WantedBy
 - Absolute paths for all executables
 - Proper directive ordering
 
-RECOMMENDED:
+**RECOMMENDED:**
 - After= dependencies
 - Restart=on-failure for daemons
 - StandardOutput/StandardError=journal
@@ -245,7 +233,7 @@ RECOMMENDED:
 - User/Group (non-root when possible)
 - Security hardening directives
 
-FORBIDDEN:
+**FORBIDDEN:**
 - Relative paths
 - Hardcoded credentials
 - Missing blank lines between sections
@@ -265,34 +253,14 @@ journalctl -u myapp.service -f
 
 ## Troubleshooting
 
-Service fails to start:
-```bash
-systemctl status myapp.service
-journalctl -u myapp.service -n 50
-systemd-analyze verify myapp.service
-```
-
-Service crashes:
-```bash
-journalctl -u myapp.service -f
-sudo -u serviceuser /path/to/executable
-systemctl show myapp.service | grep StartLimit
-```
-
-Dependencies not working:
-```bash
-systemctl list-dependencies myapp.service
-systemd-analyze plot > boot.svg
-```
+| Issue | Commands |
+|-------|----------|
+| **Service fails to start** | `systemctl status myapp.service`<br>`journalctl -u myapp.service -n 50`<br>`systemd-analyze verify myapp.service` |
+| **Service crashes** | `journalctl -u myapp.service -f`<br>`sudo -u serviceuser /path/to/executable`<br>`systemctl show myapp.service \| grep StartLimit` |
+| **Dependencies not working** | `systemctl list-dependencies myapp.service`<br>`systemd-analyze plot > boot.svg` |
 
 ## File Locations
 
 - Custom services: `/etc/systemd/system/myapp.service`
 - Package-managed: `/usr/lib/systemd/system/myapp.service`
 - User services: `~/.config/systemd/user/myapp.service`
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | 2025-11-22 | Initial standard |

@@ -24,43 +24,6 @@ labs/
 └── CLAUDE.md                              # AI agent development rules
 ```
 
-## Components
-
-| Component | Purpose | Key Features |
-|-----------|---------|--------------|
-| **init.sh** | Ubuntu 24.04 hardening | SSH hardening, CrowdSec IDS, UFW, AppArmor, AIDE, kernel security, DNS security, resume capability |
-| **docker-compose-auto** | Container orchestration | Multi-project discovery, startup ordering, systemd integration |
-| **tailscale-routing** | Network automation | Bridge/host mode support, container routing, nftables integration |
-| **cleanup scripts** | System maintenance | Safe path validation, APT lock handling, kernel retention |
-
-## Quick Start
-
-### Ubuntu Server Hardening
-```bash
-cd common/ubuntu/server/init
-cp .env.init.example .env.init
-nano .env.init
-sudo ./init.sh
-```
-
-### Docker Compose Automation
-```bash
-sudo cp common/ubuntu/server/docker-compose-auto.sh /usr/local/bin/
-sudo cp common/ubuntu/server/docker-compose-auto.service /etc/systemd/system/
-sudo systemctl enable --now docker-compose-auto.service
-```
-
-### Tailscale Host Routing
-```bash
-# Bridge mode
-sudo cp common/ubuntu/server/tailscale/bridge/* /usr/local/bin/
-sudo cp common/ubuntu/server/tailscale/bridge/*.service /etc/systemd/system/
-
-# Host mode
-sudo cp common/ubuntu/server/tailscale/host/* /usr/local/bin/
-sudo cp common/ubuntu/server/tailscale/host/*.service /etc/systemd/system/
-```
-
 ## AI Development
 
 ### Critical Rules
@@ -86,8 +49,3 @@ sudo cp common/ubuntu/server/tailscale/host/*.service /etc/systemd/system/
 - **Language**: Imperative, direct, no prose
 - **Format**: Structured lists/tables, max information density
 - **Emojis**: None (AI-optimized)
-- **Audience**: AI agents (not humans)
-
-## License
-
-Personal use - AI generated code only

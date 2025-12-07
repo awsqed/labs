@@ -131,91 +131,6 @@ RestrictRealtime=yes
 - **full**: /usr, /boot, /efi read-only
 - **yes**: /usr, /boot read-only
 
-## Common Patterns
-
-| Pattern | Implementation |
-|---------|----------------|
-| **Wait for network** | `After=network-online.target`<br>`Wants=network-online.target` |
-| **Database dependency** | `Requires=postgresql.service`<br>`After=postgresql.service` |
-| **Graceful reload** | `ExecReload=/bin/kill -HUP $MAINPID` |
-
-## Type-Specific Templates
-
-### Simple Service
-```ini
-[Unit]
-Description=My Application Server
-After=network.target
-
-[Service]
-Type=simple
-User=myapp
-WorkingDirectory=/opt/myapp
-ExecStart=/usr/bin/myapp --config /etc/myapp/config.yaml
-Restart=on-failure
-RestartSec=5s
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=myapp
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### Forking Service
-```ini
-[Unit]
-Description=My Daemon
-After=network.target
-
-[Service]
-Type=forking
-PIDFile=/run/mydaemon.pid
-ExecStart=/usr/sbin/mydaemon
-ExecReload=/bin/kill -HUP $MAINPID
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### Oneshot Service
-```ini
-[Unit]
-Description=Initialization Script
-After=network.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/init-script.sh
-RemainAfterExit=yes
-TimeoutStartSec=0
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### Container-Dependent Service
-```ini
-[Unit]
-Description=Service Depending on Docker
-After=docker.service
-Requires=docker.service
-StartLimitBurst=5
-StartLimitIntervalSec=60
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStartPre=/bin/sleep 5
-ExecStart=/usr/local/bin/container-setup.sh
-Restart=on-failure
-RestartSec=10s
-
-[Install]
-WantedBy=multi-user.target
-```
-
 ## Requirements
 
 **MUST HAVE:**
@@ -250,14 +165,6 @@ systemctl start myapp.service
 systemctl status myapp.service
 journalctl -u myapp.service -f
 ```
-
-## Troubleshooting
-
-| Issue | Commands |
-|-------|----------|
-| **Service fails to start** | `systemctl status myapp.service`<br>`journalctl -u myapp.service -n 50`<br>`systemd-analyze verify myapp.service` |
-| **Service crashes** | `journalctl -u myapp.service -f`<br>`sudo -u serviceuser /path/to/executable`<br>`systemctl show myapp.service \| grep StartLimit` |
-| **Dependencies not working** | `systemctl list-dependencies myapp.service`<br>`systemd-analyze plot > boot.svg` |
 
 ## File Locations
 

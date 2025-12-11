@@ -25,6 +25,9 @@ fi
 echo "Tailscale interface IP: $TAILSCALE_IP"
 
 echo "Configuring nftables rule to bypass ufw-docker..."
+
+nft add table ip raw 2>/dev/null || true
+nft add chain ip raw PREROUTING { type filter hook prerouting priority raw \; policy accept\; } 2>/dev/null || true
 nft delete rule ip raw PREROUTING iifname "tailscale0" accept 2>/dev/null || true
 nft insert rule ip raw PREROUTING iifname "tailscale0" accept
 
